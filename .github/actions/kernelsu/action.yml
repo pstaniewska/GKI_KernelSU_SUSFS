@@ -1,5 +1,5 @@
-name: Setup Wild KSU
-description: Download and configure Wild KSU with version tracking
+name: Setup ReSukiSU
+description: Download and configure ReSukiSU with version tracking
 inputs:
   use_latest_commits:
     description: 'Use the latest commit on the branch instead of the pinned commit'
@@ -9,62 +9,63 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Download Wild KSU
+    - name: Download ReSukiSU
       shell: bash
       working-directory: ${{ github.workspace }}/kernel
       run: |
         set -euo pipefail
 
-        KSU_REPO="https://github.com/KernelSU-Next/KernelSU-Next.git"
-        KSU_BRANCH="dev"
+        RE_SUKISU_BRANCH="main"
 
         if [ "${{ inputs.use_latest_commits }}" = "true" ]; then
-          echo "Using latest KernelSU-Next from branch: $KSU_BRANCH"
-          curl -LSs "https://raw.githubusercontent.com/pershoot/KernelSU-Next/dev-susfs/kernel/setup.sh" | bash -s dev-susfs
+          echo "Using latest ReSukiSU from branch: $RE_SUKISU_BRANCH"
+          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s "$RE_SUKISU_BRANCH"
         else
           COMMITS_JSON="${{ github.workspace }}/.github/config/commits.json"
-          KSU_SETUP_COMMIT=$(jq -er '.kernelsu.dev' "$COMMITS_JSON")
-          echo "Using pinned KernelSU commit: $KSU_SETUP_COMMIT"
-          curl -LSs "https://raw.githubusercontent.com/pershoot/KernelSU-Next/dev-susfs/kernel/setup.sh" | bash -s dev-susfs
-          git -C KernelSU-Next/kernel fetch --depth=50 origin "$KSU_SETUP_COMMIT"
-          git -C KernelSU-Next/kernel checkout "$KSU_SETUP_COMMIT"
+          RE_SUKISU_COMMIT=$(jq -er '.resukisu.main // .kernelsu.dev' "$COMMITS_JSON")
+          echo "Using pinned ReSukiSU commit: $RE_SUKISU_COMMIT"
+          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s "$RE_SUKISU_COMMIT"
         fi
 
-        cd KernelSU-Next/kernel
-        
-        COMMITS_COUNT=$(/usr/bin/git rev-list --count HEAD)
-        BASE_VERSION=30000
-        KSU_VERSION=$(expr $COMMITS_COUNT "+" $BASE_VERSION)
-        sed -i "s/^KSU_VERSION_FALLBACK := 1$/KSU_VERSION_FALLBACK := ${KSU_VERSION}/" Kbuild
+        cd KernelSU
+        KSU_GIT_VERSION=$(/usr/bin/git rev-list --count HEAD)
+        KSU_VERSION=$((30000 + KSU_GIT_VERSION + 700))
+        KSU_GIT_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo "v4.1.0")"
+        KSU_COMMIT="$(git rev-parse --short=8 HEAD 2>/dev/null || echo unknown)"
 
-        KSU_GIT_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.1")"
-        sed -i "s/^KSU_VERSION_TAG_FALLBACK := v0.0.1$/KSU_VERSION_TAG_FALLBACK := ${KSU_GIT_TAG}/" Kbuild
-    
-    - name: Extract KSU Version Info
+        echo "ReSukiSU version code: $KSU_VERSION"
+        echo "ReSukiSU tag: $KSU_GIT_TAG"
+        echo "ReSukiSU commit: $KSU_COMMIT"
+
+    - name: Extract ReSukiSU Version Info
       id: ksu-version
       shell: bash
-      working-directory: ${{ github.workspace }}/kernel/KernelSU-Next
-      run: |
-        # Extract and export KSU version info
-        KSU_GIT_VERSION=$(git rev-list --count HEAD 2>/dev/null)
-        KSU_GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
-        KSU_COMMIT=$(git rev-parse --short HEAD 2>/dev/null)
-        KSU_VERSION=$((30000 + KSU_GIT_VERSION))
-        
-        echo "KSU_GIT_TAG=$KSU_GIT_TAG" >> $GITHUB_ENV
-        echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV
-        echo "KSU_COMMIT=$KSU_COMMIT" >> $GITHUB_ENV
-
-    - name: 'Fix KernelSU-Next'
-      shell: bash
-      working-directory: ${{ github.workspace }}/kernel/KernelSU-Next
+      working-directory: ${{ github.workspace }}/kernel/KernelSU
       run: |
         set -euo pipefail
-        cp ${{ github.action_path }}/patches/static.patch "${{ github.workspace }}/kernel/KernelSU-Next/static.patch"
-        patch -p1 < static.patch
+        KSU_GIT_VERSION=$(git rev-list --count HEAD 2>/dev/null)
+        KSU_GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v4.1.0")
+        KSU_COMMIT=$(git rev-parse --short HEAD 2>/dev/null)
+        KSU_VERSION=$((30000 + KSU_GIT_VERSION + 700))
+
+        echo "KSU_GIT_TAG=$KSU_GIT_TAG" >> "$GITHUB_ENV"
+        echo "KSU_VERSION=$KSU_VERSION" >> "$GITHUB_ENV"
+        echo "KSU_COMMIT=$KSU_COMMIT" >> "$GITHUB_ENV"
+        echo "KSU_MANAGER=ReSukiSU" >> "$GITHUB_ENV"
 
     - name: Enable Kernel Configs
       uses: ./.github/actions/set-kernel-config
       with:
         config_list: |
           CONFIG_KSU=y
+          CONFIG_KSU_MULTI_MANAGER_SUPPORT=y
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+          CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_KSU_SUSFS_SUS_MAP=y

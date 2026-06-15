@@ -32,18 +32,18 @@ on:
         description: "Feature Set"
         type: choice
         options:
-          - KSUN+SUSFS+BBG+NET+DS
-          - KSUN+SUSFS+BBG
-          - KSUN+SUSFS+NET
-          - KSUN+SUSFS+DS
-          - KSUN+SUSFS
-          - KSUN+BBG
-          - KSUN+NET
-          - KSUN+DS
-          - KSUN
+          - RESUKI+SUSFS+BBG+NET+DS
+          - RESUKI+SUSFS+BBG
+          - RESUKI+SUSFS+NET
+          - RESUKI+SUSFS+DS
+          - RESUKI+SUSFS
+          - RESUKI+BBG
+          - RESUKI+NET
+          - RESUKI+DS
+          - RESUKI
           - NONE
           - FULL
-        default: FULL
+        default: RESUKI+SUSFS
       use_repo:
         description: "Use repo for downloading kernel source"
         type: boolean
