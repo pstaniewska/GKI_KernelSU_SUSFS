@@ -28,10 +28,14 @@ runs:
         ANDROID_PART=$(echo "$VERSION" | cut -d- -f1)
         KERNEL_PART=$(echo "$VERSION" | cut -d- -f2)
 
-        if [[ ${{ inputs.version }} == "android15-6.6" || ${{ inputs.version }} == "android16-6.12" ]]; then
+        if [[ "${{ inputs.version }}" == "android15-6.6" && "${{ inputs.sublevel }}" == "102" ]]; then
+          # Match Moto lamu stock kernel identity instead of appending custom branding.
+          KERNEL_STRING="6.6.102-android15-8-g6f627656aa0a-ab14809369-4k"
+          sed -i '$d' scripts/setlocalversion && echo "echo \"$KERNEL_STRING\"" >> scripts/setlocalversion
+        elif [[ ${{ inputs.version }} == "android15-6.6" || ${{ inputs.version }} == "android16-6.12" ]]; then
           KERNEL_STRING="$KERNEL_PART.${{ inputs.sublevel }}-$ANDROID_PART"
-          sed -i '$d' scripts/setlocalversion && echo "echo \"$KERNEL_STRING-Wild\"" >> scripts/setlocalversion
+          sed -i '$d' scripts/setlocalversion && echo "echo \"$KERNEL_STRING-ReSuki\"" >> scripts/setlocalversion
         else
-          sed -i '$d' scripts/setlocalversion && echo "echo \"-$ANDROID_PART-Wild\"" >> scripts/setlocalversion
+          sed -i '$d' scripts/setlocalversion && echo "echo \"-$ANDROID_PART-ReSuki\"" >> scripts/setlocalversion
         fi
         chmod +x scripts/setlocalversion

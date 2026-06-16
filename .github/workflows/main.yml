@@ -43,7 +43,7 @@ on:
           - RESUKI
           - NONE
           - FULL
-        default: RESUKI+SUSFS
+        default: RESUKI+SUSFS+BBG+NET+DS
       use_repo:
         description: "Use repo for downloading kernel source"
         type: boolean

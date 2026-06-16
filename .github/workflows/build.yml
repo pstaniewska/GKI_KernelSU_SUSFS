@@ -88,28 +88,36 @@ jobs:
       shell: bash
       run: |
         set -x
-        # Hardcode the build timestamp to the 5th day of the patch level
-        # at 04:20 UTC, using the existing timestamp formats expected by the build.
-        OS_PATCH_LEVEL_INPUT="${{ inputs.os_patch_level }}"
-        if [[ "$OS_PATCH_LEVEL_INPUT" == lts* ]]; then
-          if [[ "$OS_PATCH_LEVEL_INPUT" =~ ^lts-([0-9]{2})$ ]]; then
-            OS_PATCH_LEVEL_YM="$(date -u +%Y)-${BASH_REMATCH[1]}"
-          else
-            OS_PATCH_LEVEL_YM="$(date -u +%Y-%m)"
-          fi
+        if [[ "${{ inputs.version }}" == "android15-6.6" && "${{ inputs.sublevel }}" == "102" && "${{ inputs.os_patch_level }}" == "2025-10" ]]; then
+          SOURCE_DATE_EPOCH=1769730634
+          KBUILD_TS="Thu Jan 29 23:50:34 UTC 2026"
+          GIT_DATE="2026-01-29T23:50:34Z"
+          echo "Using Moto lamu stock kernel timestamp"
         else
-          OS_PATCH_LEVEL_YM="$OS_PATCH_LEVEL_INPUT"
+          # Hardcode the build timestamp to the 5th day of the patch level
+          # at 04:20 UTC, using the existing timestamp formats expected by the build.
+          OS_PATCH_LEVEL_INPUT="${{ inputs.os_patch_level }}"
+          if [[ "$OS_PATCH_LEVEL_INPUT" == lts* ]]; then
+            if [[ "$OS_PATCH_LEVEL_INPUT" =~ ^lts-([0-9]{2})$ ]]; then
+              OS_PATCH_LEVEL_YM="$(date -u +%Y)-${BASH_REMATCH[1]}"
+            else
+              OS_PATCH_LEVEL_YM="$(date -u +%Y-%m)"
+            fi
+          else
+            OS_PATCH_LEVEL_YM="$OS_PATCH_LEVEL_INPUT"
+          fi
+          FIXED_BUILD_DATE="${OS_PATCH_LEVEL_YM}-05 04:20:00 UTC"
+          SOURCE_DATE_EPOCH=$(date -u -d "$FIXED_BUILD_DATE" +%s)
+          KBUILD_TS=$(date -u -d @${SOURCE_DATE_EPOCH} '+%a %b %d %H:%M:%S UTC %Y')
+          GIT_DATE=$(date -u -d @${SOURCE_DATE_EPOCH} '+%Y-%m-%dT%H:%M:%SZ')
         fi
-        FIXED_BUILD_DATE="${OS_PATCH_LEVEL_YM}-05 04:20:00 UTC"
-        SOURCE_DATE_EPOCH=$(date -u -d "$FIXED_BUILD_DATE" +%s)
         echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> $GITHUB_ENV
-        KBUILD_TS=$(date -u -d @${SOURCE_DATE_EPOCH} '+%a %b %d %H:%M:%S UTC %Y')
         echo "KBUILD_BUILD_TIMESTAMP=${KBUILD_TS}" >> $GITHUB_ENV
-        # Keep git metadata aligned with the same fixed timestamp.
-        GIT_DATE=$(date -u -d @${SOURCE_DATE_EPOCH} '+%Y-%m-%dT%H:%M:%SZ')
+        echo "KBUILD_BUILD_USER=kleaf" >> $GITHUB_ENV
+        echo "KBUILD_BUILD_HOST=build-host" >> $GITHUB_ENV
         echo "GIT_COMMITTER_DATE=${GIT_DATE}" >> $GITHUB_ENV
         echo "GIT_AUTHOR_DATE=${GIT_DATE}" >> $GITHUB_ENV
-        echo "Build timestamp set to: $(date -u -d @${SOURCE_DATE_EPOCH} '+%Y-%m-%d %H:%M:%S UTC') (epoch: $SOURCE_DATE_EPOCH)"
+        echo "Build timestamp set to: $KBUILD_TS (epoch: $SOURCE_DATE_EPOCH)"
 
     - name: Extract Sublevel and Set File Name
       id: extract
@@ -298,6 +306,8 @@ jobs:
       env:
         SOURCE_DATE_EPOCH: ${{ env.SOURCE_DATE_EPOCH }}
         KBUILD_BUILD_TIMESTAMP: ${{ env.KBUILD_BUILD_TIMESTAMP }}
+        KBUILD_BUILD_USER: ${{ env.KBUILD_BUILD_USER }}
+        KBUILD_BUILD_HOST: ${{ env.KBUILD_BUILD_HOST }}
       uses: ./.github/actions/build-kernel
       with:
         version: ${{ inputs.version }}
@@ -345,6 +355,8 @@ jobs:
       env:
         SOURCE_DATE_EPOCH: ${{ env.SOURCE_DATE_EPOCH }}
         KBUILD_BUILD_TIMESTAMP: ${{ env.KBUILD_BUILD_TIMESTAMP }}
+        KBUILD_BUILD_USER: ${{ env.KBUILD_BUILD_USER }}
+        KBUILD_BUILD_HOST: ${{ env.KBUILD_BUILD_HOST }}
       uses: ./.github/actions/build-kernel
       with:
         bypass: true
