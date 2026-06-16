@@ -200,7 +200,15 @@ runs:
       working-directory: ${{ github.workspace }}/kernel/common
       run: |
         set -euo pipefail
+
+        ensure_susfs_base_include() {
+          if ! grep -q '#include <linux/susfs_def.h>' fs/proc/base.c; then
+            sed -i '/^#include "internal.h"$/i #if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)\n#include <linux/susfs_def.h>\n#endif // #if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)\n' fs/proc/base.c
+          fi
+        }
+
         if patch -p1 < 50_add_susfs_in_gki-${{ inputs.version }}.patch; then
+          ensure_susfs_base_include
           exit 0
         fi
 
@@ -212,8 +220,7 @@ runs:
           if [[ -f fs/proc/base.c.rej ]] \
             && grep -q 'linux/susfs_def.h' fs/proc/base.c.rej \
             && ! find . -name '*.rej' ! -path './fs/proc/base.c.rej' | grep -q .; then
-            grep -q '#include <linux/susfs_def.h>' fs/proc/base.c || \
-              sed -i '/^#include <linux\/dma-buf.h>$/a #if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)\n#include <linux/susfs_def.h>\n#endif // #if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)' fs/proc/base.c
+            ensure_susfs_base_include
             rm -f fs/proc/base.c.rej
             exit 0
           fi
