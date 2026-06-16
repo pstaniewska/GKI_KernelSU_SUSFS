@@ -30,7 +30,7 @@ runs:
           CONFIG_KALLSYMS=y
           CONFIG_KALLSYMS_ALL=y
 
-          CONFIG_ZRAM=y
+          CONFIG_ZRAM=m
           CONFIG_ZSMALLOC=y
           CONFIG_ZRAM_WRITEBACK=y
           CONFIG_LZ4_COMPRESS=y
