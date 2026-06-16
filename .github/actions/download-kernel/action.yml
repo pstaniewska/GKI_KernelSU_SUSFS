@@ -14,6 +14,9 @@ inputs:
   os_patch_level:
     description: 'OS patch level (e.g., 2024-01)'
     required: true
+  sublevel:
+    description: 'Kernel sublevel (e.g., 102)'
+    required: false
   use_repo:
     description: 'Use repo for downloading kernel source'
     required: false
@@ -84,6 +87,19 @@ runs:
           fi
           attempt=$((attempt+1))
         done
+
+    - name: Replace Common with Motorola lamu Source
+      if: ${{ inputs.version == 'android15-6.6' && inputs.sublevel == '102' && inputs.os_patch_level == '2025-10' }}
+      shell: bash
+      working-directory: ${{ github.workspace }}/kernel
+      run: |
+        set -euo pipefail
+        echo "Replacing GKI common with Motorola lamu source android-15-release-vvta35"
+        rm -rf common
+        git clone --depth=1 --single-branch --branch android-15-release-vvta35 \
+          https://github.com/MotorolaMobilityLLC/kernel-mtk.git common
+        cd common
+        git log -1 --oneline
 
     - name: Download manifest.xml for branch (with deprecated fallback)
       shell: bash
