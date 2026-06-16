@@ -199,7 +199,28 @@ runs:
       shell: bash
       working-directory: ${{ github.workspace }}/kernel/common
       run: |
-        patch -p1 < 50_add_susfs_in_gki-${{ inputs.version }}.patch
+        set -euo pipefail
+        if patch -p1 < 50_add_susfs_in_gki-${{ inputs.version }}.patch; then
+          exit 0
+        fi
+
+        # Motorola lamu android-15-release-vvta35 already carries a slightly
+        # different include block in fs/proc/base.c. The only observed reject
+        # for this source is the harmless susfs_def.h include hunk; apply it
+        # manually and keep the rest of the patch result.
+        if [[ "${{ inputs.version }}" == "android15-6.6" && "${{ inputs.sublevel }}" == "102" ]]; then
+          if [[ -f fs/proc/base.c.rej ]] \
+            && grep -q 'linux/susfs_def.h' fs/proc/base.c.rej \
+            && ! find . -name '*.rej' ! -path './fs/proc/base.c.rej' | grep -q .; then
+            grep -q '#include <linux/susfs_def.h>' fs/proc/base.c || \
+              sed -i '/^#include <linux\/dma-buf.h>$/a #if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)\n#include <linux/susfs_def.h>\n#endif // #if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)' fs/proc/base.c
+            rm -f fs/proc/base.c.rej
+            exit 0
+          fi
+        fi
+
+        find . -name '*.rej' -print
+        exit 1
 
     - name: Revert Android 12 5.10 Fake Patches
       shell: bash
