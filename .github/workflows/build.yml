@@ -170,6 +170,7 @@ jobs:
           android_version: ${{ inputs.android_version }}
           kernel_version: ${{ inputs.kernel_version }}
           os_patch_level: ${{ inputs.os_patch_level }}
+          sublevel: ${{ inputs.sublevel }}
 
       - name: Spoof /proc/config.gz With Stock Config
         uses: ./.github/actions/stock-config
@@ -182,6 +183,16 @@ jobs:
         shell: bash
         run: |
           set -x
+          KBUILD_BUILD_USER="kleaf"
+          KBUILD_BUILD_HOST="build-host"
+          if [[ "${{ inputs.version }}" == "android15-6.6" && "${{ inputs.sublevel }}" == "102" && "${{ inputs.os_patch_level }}" == "2025-10" ]]; then
+            SOURCE_DATE_EPOCH=1769730634
+            KBUILD_TS="Thu Jan 29 23:50:34 UTC 2026"
+            GIT_DATE="2026-01-29T23:50:34Z"
+            KBUILD_BUILD_USER="${LAMU_STOCK_BUILD_USER:-builder}"
+            KBUILD_BUILD_HOST="${LAMU_STOCK_BUILD_HOST:-build-host}"
+            echo "Using Moto lamu stock kernel timestamp"
+          else
           # Hardcode the build timestamp to the 5th day of the patch level
           # at 04:20 UTC, using the existing timestamp formats expected by the build.
           OS_PATCH_LEVEL_INPUT="${{ inputs.os_patch_level }}"
@@ -196,11 +207,13 @@ jobs:
           fi
           FIXED_BUILD_DATE="${OS_PATCH_LEVEL_YM}-05 04:20:00 UTC"
           SOURCE_DATE_EPOCH=$(date -u -d "$FIXED_BUILD_DATE" +%s)
-          echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> $GITHUB_ENV
           KBUILD_TS=$(date -u -d @${SOURCE_DATE_EPOCH} '+%a %b %d %H:%M:%S UTC %Y')
-          echo "KBUILD_BUILD_TIMESTAMP=${KBUILD_TS}" >> $GITHUB_ENV
-          # Keep git metadata aligned with the same fixed timestamp.
           GIT_DATE=$(date -u -d @${SOURCE_DATE_EPOCH} '+%Y-%m-%dT%H:%M:%SZ')
+          fi
+          echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> $GITHUB_ENV
+          echo "KBUILD_BUILD_TIMESTAMP=${KBUILD_TS}" >> $GITHUB_ENV
+          echo "KBUILD_BUILD_USER=$KBUILD_BUILD_USER" >> $GITHUB_ENV
+          echo "KBUILD_BUILD_HOST=$KBUILD_BUILD_HOST" >> $GITHUB_ENV
           echo "GIT_COMMITTER_DATE=${GIT_DATE}" >> $GITHUB_ENV
           echo "GIT_AUTHOR_DATE=${GIT_DATE}" >> $GITHUB_ENV
           echo "Build timestamp set to: $(date -u -d @${SOURCE_DATE_EPOCH} '+%Y-%m-%d %H:%M:%S UTC') (epoch: $SOURCE_DATE_EPOCH)"

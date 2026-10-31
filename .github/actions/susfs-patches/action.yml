@@ -194,7 +194,35 @@ runs:
         else
           # Deliberately no --forward (PR #342 uses --batch --forward here):
           # a reversed/already-applied hunk must fail loudly, not be skipped.
+          #
+          # Motorola lamu (android15-6.6, sublevel 102) carries a slightly
+          # different include block in fs/proc/base.c; the only reject is the
+          # harmless susfs_def.h include hunk. Apply that hunk manually and
+          # keep the rest of the patch result.
+          set +e
           patch -p1 < 50_add_susfs_in_gki-${{ inputs.version }}.patch
+          rc=$?
+          set -e
+          if [ $rc -ne 0 ] \
+            && [ "${{ inputs.version }}" = "android15-6.6" ] \
+            && [ "${{ inputs.sublevel }}" = "102" ]; then
+            ensure_susfs_base_include() {
+              if ! grep -q '#include <linux/susfs_def.h>' fs/proc/base.c; then
+                sed -i '/^#include "internal.h"$/i #if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)\n#include <linux/susfs_def.h>\n#endif // #if defined(CONFIG_KSU_SUSFS_SUS_MAP) || defined(CONFIG_KSU_SUSFS_OPEN_REDIRECT)\n' fs/proc/base.c
+              fi
+            }
+            if [ -f fs/proc/base.c.rej ] \
+              && grep -q 'linux/susfs_def.h' fs/proc/base.c.rej \
+              && ! find . -name '*.rej' ! -path './fs/proc/base.c.rej' | grep -q .; then
+              ensure_susfs_base_include
+              rm -f fs/proc/base.c.rej
+              rc=0
+            else
+              find . -name '*.rej' -print
+              exit 1
+            fi
+          fi
+          exit $rc
         fi
 
         # SUSFS's OPEN_REDIRECT code unconditionally calls VMA_PAD_START(), which
