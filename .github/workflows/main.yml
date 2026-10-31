@@ -292,7 +292,7 @@ jobs:
             [susfs_commit_android13_5_15]="f3ceb5d0463e02570e75fb364ff45840d6edd923"
             [susfs_commit_android14_5_15]="ab5ccf718887c173234b01dccf853a9044efafcf"
             [susfs_commit_android14_6_1]="8b25990241174fe88d2131a9929e36b5e5ffb1d0"
-            [susfs_commit_android15_6_6]="0606e19afae93ffc88e53883dbf3cfced62a7b59"
+            [susfs_commit_android15_6_6]="2df41de789026a6422521606402576507c687435"
             [susfs_commit_android16_6_12]="519c86c5d8ad3832ff4a2e1a81dc1b81076f1693"
           )
           # SukiSU-Ultra keeps its own SUSFS pin set too (same starting values).
