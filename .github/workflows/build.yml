@@ -229,6 +229,18 @@ jobs:
           variant: ${{ inputs.variant }}
           page_size: ${{ inputs.page_size }}
 
+      - name: Hardcode lamu Banner Inputs
+        if: ${{ inputs.version == 'android15-6.6' && inputs.sublevel == '102' && inputs.os_patch_level == '2025-10' }}
+        shell: bash
+        working-directory: ${{ github.workspace }}/kernel/common
+        run: |
+          set -euo pipefail
+          sed -i 's|^build-timestamp = .*|build-timestamp = Thu Jan 29 23:50:34 UTC 2026|' init/Makefile
+          sed -i 's|^build-version = .*|build-version = 1|' init/Makefile
+          sed -i '3i : "${KBUILD_BUILD_USER:=builder}"\n: "${KBUILD_BUILD_HOST:=build-host}"' scripts/mkcompile_h
+          grep -n 'build-timestamp' init/Makefile | head -1
+          head -6 scripts/mkcompile_h | tail -3
+
       - name: Kernel Fixes
         uses: ./.github/actions/kernel-fixes
         with:
@@ -494,8 +506,8 @@ jobs:
         env:
           SOURCE_DATE_EPOCH: ${{ env.SOURCE_DATE_EPOCH }}
           KBUILD_BUILD_TIMESTAMP: ${{ env.KBUILD_BUILD_TIMESTAMP }}
-          KBUILD_BUILD_USER: ${{ (inputs.version == 'android15-6.6' || inputs.version == 'android16-6.12') && 'kleaf' || 'build-user' }}
-          KBUILD_BUILD_HOST: build-host
+          KBUILD_BUILD_USER: ${{ env.KBUILD_BUILD_USER || ((inputs.version == 'android15-6.6' || inputs.version == 'android16-6.12') && 'kleaf' || 'build-user') }}
+          KBUILD_BUILD_HOST: ${{ env.KBUILD_BUILD_HOST || 'build-host' }}
         uses: ./.github/actions/build-kernel
         with:
           version: ${{ inputs.version }}
