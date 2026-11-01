@@ -241,6 +241,57 @@ jobs:
           grep -n 'build-timestamp' init/Makefile | head -1
           head -6 scripts/mkcompile_h | tail -3
 
+      - name: Apply lamu SELinuxfs Probe Filter
+        if: ${{ inputs.version == 'android15-6.6' && inputs.sublevel == '102' && inputs.os_patch_level == '2025-10' }}
+        shell: bash
+        working-directory: ${{ github.workspace }}/kernel/common
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          p = "security/selinux/selinuxfs.c"
+          s = open(p).read()
+          helper = r'''
+          static bool lamu_dirty_policy_probe(const char *buf, size_t size)
+          {
+              static const char * const dirty[] = {
+                  "u:r:ksu:", "ksu_file", "u:r:ksud",
+                  "u:r:magisk", "magisk_file",
+                  "u:r:su:s0", "u:r:adbroot", "lsposed_file",
+                  "duckdetector", "droidspacesd", NULL
+              };
+              int i;
+              if (size < 10 || size > 800)
+                  return false;
+              if (current_uid().val < 10000)
+                  return false;
+              for (i = 0; dirty[i]; i++) {
+                  size_t dl = strlen(dirty[i]);
+                  size_t j;
+                  if (size < dl)
+                      continue;
+                  for (j = 0; j <= size - dl; j++) {
+                      if (buf[j] == dirty[i][0] &&
+                          memcmp(buf + j, dirty[i], dl) == 0)
+                          return true;
+                  }
+              }
+              return false;
+          }
+          '''
+          anchor = "static ssize_t selinux_transaction_write(struct file *file, const char __user *buf, size_t size, loff_t *pos)"
+          assert anchor in s, "anchor transaction_write missing"
+          if "#include <linux/cred.h>" not in s:
+              s = s.replace("#include <linux/kernel.h>", "#include <linux/kernel.h>\\n#include <linux/cred.h>", 1)
+          s = s.replace(anchor, helper + "\n" + anchor, 1)
+          probe = "	data = simple_transaction_get(file, buf, size);\n	if (IS_ERR(data))\n		return PTR_ERR(data);"
+          assert probe in s, "probe anchor missing"
+          probe_new = probe + "\n\n	if (lamu_dirty_policy_probe(data, size))\n		return -EINVAL;"
+          s = s.replace(probe, probe_new, 1)
+          open(p, "w").write(s)
+          print("selinuxfs probe filter applied")
+          PYEOF
+          grep -n "lamu_dirty_policy_probe" security/selinux/selinuxfs.c | head -3
+
       - name: Kernel Fixes
         uses: ./.github/actions/kernel-fixes
         with:
